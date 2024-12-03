@@ -8,6 +8,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// The ConnectDB function establishes a connection to a PostgreSQL database using the provided
+// connection string.
 func ConnectDB() (*sql.DB, error) {
 	connStr := os.Getenv("CONNECTION_STRING")
 	db, err := sql.Open("postgres", connStr)

@@ -12,6 +12,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// The HandleUpdate function processes different commands based on user input in a Telegram bot.
 func HandleUpdate(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update) {
 	if update.Message == nil {
 		return
@@ -36,6 +37,8 @@ func HandleUpdate(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update) 
 	}
 }
 
+// The `handleFSM` function manages a finite state machine for processing user input in a Telegram bot,
+// allowing users to submit voice recordings with associated metadata.
 func handleFSM(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update, userState string) {
 	userID := update.Message.From.ID
 	chatID := update.Message.Chat.ID
@@ -78,7 +81,6 @@ func handleSaveVoice(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Updat
 	chatID := update.Message.Chat.ID
 	state := GetFSMState(userID)
 
-	// Завантажуємо голосовий файл
 	voicePath, err := file.DownloadVoiceFile(bot, state.Voice)
 	if err != nil {
 		log.Printf("Error downloading voice file: %v", err)
@@ -86,7 +88,6 @@ func handleSaveVoice(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Updat
 		return
 	}
 
-	// Зберігаємо в базу даних
 	err = db.SaveVoiceToDB(dbConn, voicePath, state.Name, state.Description, state.Tags, state.Author, state.AuthorID)
 	if err != nil {
 		log.Printf("Error saving data to DB: %v", err)
@@ -95,7 +96,7 @@ func handleSaveVoice(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Updat
 	}
 
 	sendMessage(bot, chatID, "Voice saved successfully!")
-	SetUserState(userID, "") // Очистка стану
+	SetUserState(userID, "")
 }
 
 func handleEditCommand(bot *tgbotapi.BotAPI, dbConn *sql.DB, chatID, userID int64) {
@@ -121,6 +122,8 @@ func handleEditCommand(bot *tgbotapi.BotAPI, dbConn *sql.DB, chatID, userID int6
 	SetUserState(userID, "waiting_for_edit_selection")
 }
 
+// The function `handleListVoices` retrieves a user's recorded voices from a database and sends them as
+// a message to a chat using a Telegram bot.
 func handleListVoices(bot *tgbotapi.BotAPI, dbConn *sql.DB, chatID, userID int64) {
 	voices, err := db.GetUserVoices(dbConn, userID)
 	if err != nil {

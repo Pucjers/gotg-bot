@@ -16,6 +16,8 @@ func init() {
 	}
 }
 
+// The main function loads environment configuration, connects to a database, and runs a bot using the
+// database connection.
 func main() {
 	config.LoadEnvironment()
 

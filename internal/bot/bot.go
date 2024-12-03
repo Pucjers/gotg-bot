@@ -10,6 +10,8 @@ import (
 
 var Bot *tgbotapi.BotAPI
 
+// The `Run` function initializes a Telegram bot using a provided API token and continuously listens
+// for updates to handle using the `HandleUpdate` function.
 func Run(db *sql.DB) {
 	token := os.Getenv("TELEGRAM_APITOKEN")
 

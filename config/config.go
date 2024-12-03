@@ -7,6 +7,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// The function `LoadEnvironment` checks for the presence of required environment variables and logs
+// warnings or errors accordingly.
 func LoadEnvironment() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found")
