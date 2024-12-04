@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"gotg-bot/db"
@@ -22,19 +23,30 @@ func HandleUpdate(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update) 
 	chatID := update.Message.Chat.ID
 	userState := GetUserState(userID)
 
+	if update.Message.IsCommand() {
+		log.Print("зарегал")
+		handleCommand(bot, update)
+		return
+	}
+
+	if userState != "" {
+		handleFSM(bot, dbConn, update, userState)
+		return
+	}
+
 	switch update.Message.Text {
 	case "Add":
 		SetUserState(userID, "waiting_for_voice")
 		sendMessage(bot, chatID, "Send a voice message:")
 	case "Edit":
-		handleEditCommand(bot, dbConn, chatID, userID)
+		handleEditCommand(bot, dbConn, update)
 	case "Delete":
 		sendMessage(bot, chatID, "Delete feature is not implemented yet.")
 	case "List":
 		handleListVoices(bot, dbConn, chatID, userID)
 	default:
-		handleFSM(bot, dbConn, update, userState)
 	}
+
 }
 
 // The `handleFSM` function manages a finite state machine for processing user input in a Telegram bot,
@@ -71,9 +83,52 @@ func handleFSM(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update, use
 		state.Author = update.Message.Text
 		state.AuthorID = userID
 		handleSaveVoice(bot, dbConn, update)
+	case "waiting_for_edit_selection":
+		handleEditChoice(bot, dbConn, update)
+	case "editing_voice":
+		switch strings.ToLower(update.Message.Text) {
+		case "name":
+			SetUserState(update.Message.From.ID, "editing_voice_name")
+			sendMessage(bot, update.Message.Chat.ID, "Enter a new name:")
+		case "description":
+			SetUserState(update.Message.From.ID, "editing_voice_description")
+			sendMessage(bot, update.Message.Chat.ID, "Enter a new description:")
+		default:
+			sendMessage(bot, update.Message.Chat.ID, "Please select what you want to change (name/description).")
+		}
+	case "editing_voice_name":
+		state := GetFSMState(userID)
+		voiceID, _ := strconv.Atoi(state.Voice)
+		db.UpdateVoiceField(dbConn, voiceID, "name", update.Message.Text)
+		sendMessage(bot, update.Message.Chat.ID, "Name updated successfully!")
+		SetUserState(update.Message.From.ID, "")
+	case "editing_voice_description":
+		state := GetFSMState(userID)
+		voiceID, _ := strconv.Atoi(state.Voice)
+		db.UpdateVoiceField(dbConn, voiceID, "description", update.Message.Text)
+		sendMessage(bot, update.Message.Chat.ID, "Description updated successfully!")
+		SetUserState(update.Message.From.ID, "")
 	default:
 		sendMessage(bot, chatID, "Unknown command or state.")
 	}
+}
+
+func handleCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
+
+	switch update.Message.Command() {
+	case "start", "open":
+		msg.Text = "Keyboard is open"
+		msg.ReplyMarkup = numericKeyboard
+	case "close":
+		msg.Text = "Keyboard is closed"
+		msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+	default:
+		msg.Text = "I don't know that command"
+		msg.ReplyMarkup = numericKeyboard
+	}
+	bot.Send(msg)
 }
 
 func handleSaveVoice(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update) {
@@ -99,7 +154,10 @@ func handleSaveVoice(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Updat
 	SetUserState(userID, "")
 }
 
-func handleEditCommand(bot *tgbotapi.BotAPI, dbConn *sql.DB, chatID, userID int64) {
+func handleEditCommand(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update) {
+	chatID := update.Message.Chat.ID
+	userID := update.Message.From.ID
+
 	voices, err := db.GetUserVoices(dbConn, userID)
 	if err != nil {
 		log.Printf("Error retrieving voices: %v", err)
@@ -120,6 +178,26 @@ func handleEditCommand(bot *tgbotapi.BotAPI, dbConn *sql.DB, chatID, userID int6
 	response.WriteString("\nEnter the number of the recording you want to edit:")
 	sendMessage(bot, chatID, response.String())
 	SetUserState(userID, "waiting_for_edit_selection")
+}
+
+func handleEditChoice(bot *tgbotapi.BotAPI, dbConn *sql.DB, update tgbotapi.Update) {
+	index, err := strconv.Atoi(update.Message.Text)
+	if err != nil || index <= 0 {
+		sendMessage(bot, update.Message.Chat.ID, "Please enter a valid number.")
+		return
+	}
+
+	voices, err := db.GetUserVoices(dbConn, update.Message.From.ID)
+	if err != nil || index > len(voices) {
+		sendMessage(bot, update.Message.Chat.ID, "Invalid number. Try again.")
+		return
+	}
+
+	selectedVoice := voices[index-1]
+	SetUserState(update.Message.From.ID, "editing_voice")
+	userStates[update.Message.From.ID].Voice = strconv.Itoa(selectedVoice.ID)
+
+	sendMessage(bot, update.Message.Chat.ID, "You are editing the recording: "+selectedVoice.Name+". What would you like to change? (name/description)")
 }
 
 // The function `handleListVoices` retrieves a user's recorded voices from a database and sends them as
