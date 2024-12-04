@@ -22,7 +22,7 @@ go.work
 go.work.sum
 
 #voices
-.ogg
+*.ogg
 
 # env file
 .env
