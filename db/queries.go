@@ -49,3 +49,9 @@ func UpdateVoiceField(db *sql.DB, voiceID int, fieldName string, value interface
 	_, err := db.Exec(sqlStatement, value, voiceID)
 	return err
 }
+
+func DeleteVoice(db *sql.DB, voiceID int) error {
+	sqlStatement := `DELETE FROM voices WHERE id = $1`
+	_, err := db.Exec(sqlStatement, voiceID)
+	return err
+}

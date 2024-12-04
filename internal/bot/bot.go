@@ -2,6 +2,7 @@ package bot
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
@@ -20,7 +21,17 @@ func Run(db *sql.DB) {
 	if err != nil {
 		log.Fatal("Failed to create bot:", err)
 	}
-
+	// commands := []tgbotapi.BotCommand{
+	// 	{Command: "start", Description: "Start the bot"},
+	// 	{Command: "open", Description: "Open the keyboard"},
+	// 	{Command: "close", Description: "Close the keyboard"},
+	// 	{Command: "cancel", Description: "Cancel current action"},
+	// }
+	// _, err = Bot.Request(tgbotapi.NewSetMyCommands(commands...))
+	// if err != nil {
+	// 	log.Fatal("Failed to create bot:", err)
+	// }
+	fmt.Println(Bot.GetMyCommands())
 	Bot.Debug = true
 	log.Printf("Authorized on account %s", Bot.Self.UserName)
 
