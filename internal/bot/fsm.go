@@ -16,10 +16,12 @@ func SetFSMState(userID int64, state *db.FSMVoices) {
 	mu.Lock()
 	defer mu.Unlock()
 	userStates[userID] = state
+	return
 }
 
 // GetFSMState retrieves the FSM state for a specific user. If no state exists, it initializes a new one.
 func GetFSMState(userID int64) *db.FSMVoices {
+	
 	mu.Lock()
 	defer mu.Unlock()
 	if state, exists := userStates[userID]; exists {
